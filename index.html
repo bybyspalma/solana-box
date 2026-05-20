@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-select=none">
+    <title>Solana Box - Arcade Gold Edition</title>
+    <link rel="icon" type="image/png" href="https://solanabox.netlify.app/assets/logo_spam.png">
+    <link rel="apple-touch-icon" href="https://solanabox.netlify.app/assets/logo_spam.png">
+    
+    <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.min.js"></script>
+    <style>
+        /* ESTILOS GLOBALES */
+        body { margin: 0; padding: 0; background: #000; height: 100dvh; width: 100vw; font-family: 'Courier New', monospace; color: white; overflow: hidden; display: flex; justify-content: center; align-items: center; }
+        
+        #arcade-cabinet { width: 1080px; height: 2400px; background-image: url('bkg.jpg'); background-size: 100% 100%; position: absolute; top: 0; left: 0; transform-origin: top left; z-index: 1; }
+        #monitor { width: 630px; height: 480px; position: absolute; top: 530px; left: 110px; transform: scale(1.35); transform-origin: top left; background: #050505; border-radius: 40px; overflow: hidden; z-index: 2; }
+        
+        /* BOTONES ORIGINALES INTOCABLES */
+        .img-btn { position: absolute; object-fit: contain; user-select: none; touch-action: none; cursor: pointer; z-index: 9999; }
+        #btn-izq { bottom:760px; left: 40px; width: 260px; height: 280px; } 
+        #btn-der { bottom: 760px; left: 110px; width: 260px; height: 280px; } 
+        #btn-suave { bottom: 890px; left: 500px; width: 260px; height: 260px; } 
+        #btn-fuerte { bottom: 920px; left: 760px; width: 260px; height: 260px; } 
+        #btn-esquivo { bottom: 675px; left: 790px; width: 260px; height: 260px; } 
+        #btn-defensa { bottom: 640px; left: 540px; width: 260px; height: 260px; } 
+        #music-btn-img { position: absolute; bottom:570px; left: 300px; width: 200px; z-index: 9999; cursor: pointer; border-radius: 50%; opacity: 0.8; }
+
+        .screen { display: none; width: 100%; height: 100%; position: absolute; top:0; left:0; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .active { display: flex; }
+        
+        /* FONDO BOXING PARA LA PANTALLA 1 */
+        #sc-1 { background: url('assets/fondo boxing.gif') center/cover; }
+        #sc-1 h1 { background: rgba(0,0,0,0.8); padding: 10px 20px; border-radius: 10px; text-shadow: 0 0 10px #00ffa3; }
+
+        .char-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; }
+        .char-box { width: 90px; height: 115px; background: #111; border: 3px solid #555; cursor: pointer; overflow: hidden; }
+        .char-box img { width: 100%; height: 75px; object-fit: cover; }
+        .char-box span { font-size: 10px; display: block; background: #000; padding: 4px 0; font-weight: bold; }
+        .char-box.selected { border-color: #00ffa3; box-shadow: 0 0 15px #00ffa3; }
+        
+        .hud { position: absolute; top: 10px; width: 94%; display: flex; justify-content: space-between; z-index: 10; }
+        .bar-bg { width: 160px; height: 12px; background: #222; border: 1px solid #fff; position: relative; }
+        .hp-f { width: 100%; height: 100%; background: #2ecc71; transition: 0.2s; }
+        .st-f { width: 100%; height: 5px; background: #3498db; position: absolute; bottom: -7px; left: 0; transition: width 0.2s; }
+        .marcador-central { text-align: center; background: rgba(0,0,0,0.8); padding: 5px 15px; border-radius: 8px; border: 1px solid #444; }
+        #timer { font-size: 24px; color: #fff; font-weight: bold; }
+
+        .sprite { height: 280px; position: absolute; bottom: 23px; image-rendering: pixelated; z-index: 5; transition: left 0.1s, right 0.1s; }
+        #announcer { position: absolute; top: 30%; width: 100%; text-align: center; font-size: 22px; z-index: 20; display: none; background: rgba(0,0,0,0.9); color: white; padding: 20px 0; border-top: 3px solid #e74c3c; border-bottom: 3px solid #e74c3c; }
+        button { background: #e74c3c; color: white; border: 3px solid #c0392b; padding: 10px 15px; cursor: pointer; font-weight: bold; margin-top: 15px; }
+
+        #victory-overlay { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 20, 0, 0.95); z-index: 100; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 30px; box-sizing: border-box; }
+        #victory-overlay h1 { color: #00ffa3; font-size: 40px; margin: 0 0 10px 0; text-shadow: 0 0 20px #00ffa3; }
+        #victory-overlay p { color: white; font-size: 16px; line-height: 1.6; font-weight: bold; text-shadow: 2px 2px 4px #000; margin:0; }
+        
+        #desktop-blocker { display: none; flex-direction: column; justify-content: center; align-items: center; text-align: center; width: 100vw; height: 100vh; background: #050505; position: absolute; z-index: 9999; }
+
+        @media (min-width: 900px) { #arcade-cabinet { display: none !important; } #desktop-blocker { display: flex !important; } }
+    </style>
+</head>
+<body>
+
+<div id="desktop-blocker">
+    <h1>📱 JUEGO EXCLUSIVO PARA MÓVIL</h1>
+    <p>Abre este enlace desde el explorador de tu wallet en tu celular para jugar.</p>
+</div>
+
+<div id="arcade-cabinet">
+
+    <div id="monitor">
+        <div id="sc-1" class="screen active">
+            <h1>SOLANA BOXING</h1>
+            <button onclick="changeScreen(2)">INICIAR</button>
+        </div>
+        <div id="sc-2" class="screen">
+            <h2 style="margin-bottom: 5px;">ELIGE TU LUCHADOR</h2>
+            <div class="char-grid">
+                <div class="char-box selected" onclick="selectChar('norteno', this)"><img src="assets/boxers/perfiles/norteno.png"><span>TRUMP</span></div>
+                <div class="char-box" onclick="selectChar('chilango', this)"><img src="assets/boxers/perfiles/chilango.png"><span>BUKELE</span></div>
+                <div class="char-box" onclick="selectChar('cirujano', this)"><img src="assets/boxers/perfiles/cirujano.png"><span>AFGAN</span></div>
+                <div class="char-box" onclick="selectChar('maya', this)"><img src="assets/boxers/perfiles/maya.png"><span>MILEI</span></div>
+                <div class="char-box" onclick="selectChar('payaso', this)"><img src="assets/boxers/perfiles/payaso.png"><span>CLAU</span></div>
+                <div class="char-box" onclick="selectChar('vagabundo', this)"><img src="assets/boxers/perfiles/vagabundo.png"><span>ELON</span></div>
+            </div>
+            <button onclick="changeScreen(3)">CONTINUAR</button>
+        </div>
+        <div id="sc-3" class="screen">
+            <h2>0.001 SOL o GRATIS CON NFT VIP</h2>
+            <button onclick="verificarYJugar()" id="btn-pay">CONECTAR Y JUGAR</button>
+            <p id="tx-status" style="font-size:10px; color:#f1c40f; margin-top: 10px; text-align: center; max-width: 80%;"></p>
+        </div>
+        <div id="sc-4" class="screen">
+            <div id="announcer">ROUND 1</div>
+            <div class="hud">
+                <div class="bar-bg"><div id="hp1" class="hp-f"></div><div id="st1" class="st-f"></div></div>
+                <div class="marcador-central">
+                    <div id="timer">45</div>
+                    <div style="font-size:10px; color:#00ffa3;">W: <span id="w1">0</span> - <span id="w2">0</span></div>
+                </div>
+                <div class="bar-bg"><div id="hp2" class="hp-f"></div><div id="st2" class="st-f"></div></div>
+            </div>
+            <img id="p1" class="sprite"><img id="p2" class="sprite" style="transform: scaleX(-1);">
+        </div>
+        
+        <div id="victory-overlay"></div>
+    </div>
+
+    <img id="btn-izq" src="assets/Botones de juego/btn_izq.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('arrowleft', true, 'btn_izq', this); event.preventDefault();" 
+         ontouchend="accionarVisual('arrowleft', false, 'btn_izq', this); event.preventDefault();"
+         onpointerdown="accionarVisual('arrowleft', true, 'btn_izq', this)" 
+         onpointerup="accionarVisual('arrowleft', false, 'btn_izq', this)" 
+         onpointerleave="accionarVisual('arrowleft', false, 'btn_izq', this)">
+    
+    <img id="btn-der" src="assets/Botones de juego/btn_der.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('arrowright', true, 'btn_der', this); event.preventDefault();" 
+         ontouchend="accionarVisual('arrowright', false, 'btn_der', this); event.preventDefault();"
+         onpointerdown="accionarVisual('arrowright', true, 'btn_der', this)" 
+         onpointerup="accionarVisual('arrowright', false, 'btn_der', this)" 
+         onpointerleave="accionarVisual('arrowright', false, 'btn_der', this)">
+         
+    <img id="btn-suave" src="assets/Botones de juego/golpe_suave.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('a', true, 'golpe_suave', this); event.preventDefault();" 
+         ontouchend="accionarVisual('a', false, 'golpe_suave', this); event.preventDefault();"
+         onpointerdown="accionarVisual('a', true, 'golpe_suave', this)" 
+         onpointerup="accionarVisual('a', false, 'golpe_suave', this)" 
+         onpointerleave="accionarVisual('a', false, 'golpe_suave', this)">
+    
+    <img id="btn-fuerte" src="assets/Botones de juego/golpe_fuerte.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('s', true, 'golpe_fuerte', this); event.preventDefault();" 
+         ontouchend="accionarVisual('s', false, 'golpe_fuerte', this); event.preventDefault();"
+         onpointerdown="accionarVisual('s', true, 'golpe_fuerte', this)" 
+         onpointerup="accionarVisual('s', false, 'golpe_fuerte', this)" 
+         onpointerleave="accionarVisual('s', false, 'golpe_fuerte', this)">
+
+    <img id="btn-esquivo" src="assets/Botones de juego/esquivo.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('x', true, 'esquivo', this); event.preventDefault();" 
+         ontouchend="accionarVisual('x', false, 'esquivo', this); event.preventDefault();"
+         onpointerdown="accionarVisual('x', true, 'esquivo', this)" 
+         onpointerup="accionarVisual('x', false, 'esquivo', this)" 
+         onpointerleave="accionarVisual('x', false, 'esquivo', this)">
+    
+    <img id="btn-defensa" src="assets/Botones de juego/defensa.png?v=2" class="img-btn" 
+         ontouchstart="accionarVisual('z', true, 'defensa', this); event.preventDefault();" 
+         ontouchend="accionarVisual('z', false, 'defensa', this); event.preventDefault();"
+         onpointerdown="accionarVisual('z', true, 'defensa', this)" 
+         onpointerup="accionarVisual('z', false, 'defensa', this)" 
+         onpointerleave="accionarVisual('z', false, 'defensa', this)">
+
+    <img id="music-btn-img" src="assets/music/music icn/music off.png" onclick="toggleMusic()">
+    
+    <audio id="bgm" src="assets/music/fondo/solanaboxgame.wav" loop></audio>
+    <audio id="sfx-suave" src="assets/hits/softhit.mp3"></audio>
+    <audio id="sfx-fuerte" src="assets/hits/hardhit.mp3"></audio>
+    <audio id="sfx-win" src="assets/music/win/Modo Ganador.wav"></audio>
+    <audio id="sfx-lose" src="assets/music/loser/Final en fallo.wav"></audio>
+
+</div>
+
+<script>
+    function ajustarPantalla() {
+        const cabina = document.getElementById('arcade-cabinet');
+        const targetWidth = 1080;
+        const targetHeight = 2400; 
+        const phoneWidth = window.innerWidth;
+        const phoneHeight = window.innerHeight;
+        
+        const scaleX = phoneWidth / targetWidth;
+        const scaleY = phoneHeight / targetHeight;
+        const scale = Math.min(scaleX, scaleY) * 1.12; 
+        
+        const offsetX = (phoneWidth - (targetWidth * scale)) / 2;
+        const offsetY = (phoneHeight - (targetHeight * scale)) / 2;
+        
+        cabina.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+    }
+    
+    window.addEventListener('resize', ajustarPantalla);
+    window.addEventListener('load', ajustarPantalla); 
+    ajustarPantalla(); 
+
+    // === AQUÍ ESTÁN LOS 13 NFTs VIP (MINTS) EXACTOS ===
+    const VIP_MINTS = [
+        "9FUVJRQ6Fsa9D8DBE3NLX2G1HPLMoMytXtCHE3LcBDRB",
+        "3NUUsh81TBp1WyepSL5feufUTmCYFb2fqTSUGv57sskB",
+        "GXGv76eedQvf87U2QN5mVTpa51gARHtQkFXdSBhdQBP2",
+        "AfGgzoZg54MHCjc3hq4Gkom6jHrHav1KqWm3qVRGVDKr",
+        "G1htDDScmBq5c9hM1vdMaa15AvXVTgtWBsTHZmkPn9D5",
+        "4vHYfqVtdxn5waND9a1fjwAztkQtbdeVNWxaDwufvHnD",
+        "H4ddBrUGzXHPbtQaGfMU3dpPaCyCdCLYMqKcUAvB7bfc",
+        "FPF4cWEDcoZYGQpRBKAfpr3HjnBJ3EajQMvFHpuHfNDG",
+        "3FZuRE2614auxp6bZA4vzEfjik5y8XSUekJgvg6bmxzF",
+        "7sVu5VYP4TUGXPkG74vECNhApWAZPwGVauFaUm33upoR",
+        "4z88cSjm5zgC7y34DvrWo2ToF3Q3tt5r2BSBF8LVgKvh",
+        "FJCBZ8vyUSB7roKNeGPEvB3LGwTgN1buiyLZ9jjpxchu",
+        "BCJ3oHoVTBvMB29apwA9EPcTBasRMtLaM9ELcKm1HVPq"
+    ];
+
+    const NODO_RPC = "https://mainnet.helius-rpc.com/?api-key=19beb314-5bc8-4e48-99cf-a25c096ff250"; 
+    const TESORERIA = "ARRGSnvXJPaPtbD4FfVff5CVJ8PUhLaPhju3W9rXWyxy";
+    
+    const RINGS = ['ring1.png', 'ring2.png', 'ring3.png', 'ring4.png', 'ring5.png'];
+    const DIST_COLISION = 330, DIST_MINIMA = 310;   
+    
+    let p1Char = 'norteno', active = false, opIdx = 0, walletJugador = "N/A";
+    let gauntlet = [], roundsP1=0, roundsP2=0, curRound=1, timeLeft=45;
+    let hp1=100, hp2=100, st1=100, st2=100, pos1=60, pos2=60, isDef=false, isEsq=false;
+    let loopStamina, timerIA, timerIdleP1, timerIdleP2; 
+
+    function playSFX(id) { let s = document.getElementById(id); if(s){ s.currentTime=0; s.play().catch(()=>{}); } }
+    function changeScreen(n) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById('sc-'+n).classList.add('active'); }
+    function selectChar(n, el) { p1Char = n; document.querySelectorAll('.char-box').forEach(b => b.classList.remove('selected')); el.classList.add('selected'); }
+
+    // === VALIDACIÓN PURA CRUDA (JSON-RPC) ===
+    async function verificarYJugar() {
+        const st = document.getElementById('tx-status');
+        try {
+            let p = window.solflare || window.solana; 
+            
+            if(!p) {
+                let esCelular = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+                if (esCelular) {
+                    st.innerText = "Abriendo en Solflare...";
+                    const urlActual = encodeURIComponent(window.location.href);
+                    window.location.href = `https://solflare.com/ul/v1/browse/${urlActual}?ref=${urlActual}`;
+                    return; 
+                } else {
+                    throw new Error("Por favor, instala la extensión de Solflare o Phantom.");
+                }
+            }
+            
+            if (!p.isConnected) await p.connect(); 
+            walletJugador = p.publicKey.toString(); 
+            
+            st.innerText = "Escaneando si traes uno de los 13 NFTs VIP...";
+
+            let tieneVIP = false;
+
+            // Preguntamos directo al nodo por los 13 mints SIN usar web3.js para que no explote
+            const peticiones = VIP_MINTS.map(mint => 
+                fetch(NODO_RPC, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        jsonrpc: "2.0",
+                        id: 1,
+                        method: "getTokenAccountsByOwner",
+                        params: [
+                            walletJugador,
+                            { mint: mint },
+                            { encoding: "jsonParsed" }
+                        ]
+                    })
+                }).then(res => res.json()).catch(() => ({}))
+            );
+
+            const resultados = await Promise.all(peticiones);
+            
+            // Revisamos las respuestas
+            for (let r of resultados) {
+                if (r.result && r.result.value && r.result.value.length > 0) {
+                    let balance = r.result.value[0].account.data.parsed.info.tokenAmount.uiAmount;
+                    if (balance > 0) {
+                        tieneVIP = true;
+                        break;
+                    }
+                }
+            }
+
+            if (tieneVIP) {
+                st.innerText = "¡PASE VIP DETECTADO! Entrando gratis jefe...";
+                setTimeout(iniciarTorneo, 1000);
+                return; 
+            }
+            
+            // === SI NO TIENE LOS NFTS, COBRA ===
+            st.innerText = "Aprobando cover de 0.001 SOL...";
+            
+            const conn = new solanaWeb3.Connection(NODO_RPC, 'confirmed');
+            const tx = new solanaWeb3.Transaction().add(
+                solanaWeb3.SystemProgram.transfer({ 
+                    fromPubkey: p.publicKey, 
+                    toPubkey: new solanaWeb3.PublicKey(TESORERIA), 
+                    lamports: 1000000 
+                })
+            );
+            
+            tx.feePayer = p.publicKey;
+            const { blockhash } = await conn.getLatestBlockhash('confirmed');
+            tx.recentBlockhash = blockhash; 
+            
+            let signed = await p.signAndSendTransaction(tx);
+            let signature = signed.signature ? signed.signature : signed; 
+            
+            st.innerText = "Confirmando transacción en la red...";
+            await conn.confirmTransaction(signature, 'confirmed');
+            
+            st.innerText = "¡PAGO ACEPTADO! Entrando al ring...";
+            setTimeout(iniciarTorneo, 1000);
+            
+        } catch(e) { 
+            console.error("Error: ", e);
+            st.innerText = "Transacción cancelada o fallida."; 
+        }
+    }
+
+    function iniciarTorneo() { 
+        const pool = ['norteno', 'chilango', 'cirujano', 'maya', 'payaso', 'vagabundo']; 
+        gauntlet = [pool[Math.floor(Math.random()*6)], pool[Math.floor(Math.random()*6)], pool[Math.floor(Math.random()*6)]];
+        opIdx = 0; roundsP1 = 0; roundsP2 = 0; changeScreen(4); iniciarPelea(); 
+    }
+
+    function iniciarPelea() { 
+        const r = RINGS[Math.floor(Math.random()*RINGS.length)];
+        document.getElementById('sc-4').style.background = `url('assets/ring/${r}') bottom/cover`;
+        curRound = 1; prepararRound(); 
+    }
+
+    function prepararRound() {
+        active = false; hp1=100; hp2=100; st1=100; st2=100; pos1=60; pos2=60; timeLeft=45; isDef=false; isEsq=false; window.ko = false;
+        document.getElementById('p1').style.left = "60px"; document.getElementById('p2').style.right = "60px";
+        document.getElementById('p1').src = `assets/boxers/${p1Char}/idle.gif`; document.getElementById('p2').src = `assets/boxers/${gauntlet[opIdx]}/idle.gif`;
+        const ann = document.getElementById('announcer'); ann.innerHTML = `VS ${gauntlet[opIdx].toUpperCase()}<br>ROUND ${curRound}`; ann.style.display = "block";
+        
+        clearInterval(loopStamina); 
+        
+        loopStamina = setInterval(() => { 
+            if(active) { 
+                // ESTAMINA INTACTA (+20)
+                st1 = Math.min(100, st1 + 20); 
+                st2 = Math.min(100, st2 + 20); 
+                
+                // REGENERACIÓN DE VIDA (+ Dificultad)
+                hp1 = Math.min(100, hp1 + 1);
+                hp2 = Math.min(100, hp2 + 1);
+
+                updateUI(); 
+            } 
+        }, 400);
+
+        setTimeout(() => { ann.style.display = "none"; active = true; loopIA(); }, 2000);
+    }
+
+    // IA MÁS DIFICIL
+    function loopIA() {
+        clearTimeout(timerIA); if(!active) return;
+        let dist = 530 - pos1 - pos2;
+        if(dist <= DIST_COLISION) {
+            if(Math.random() < 0.8) {
+                if (st2 >= 20 && Math.random() < 0.5) { 
+                    st2 -= 20;
+                    updateUI();
+                    pegar('p2', 8, 'golpe fuerte.png');
+                } else if (st2 >= 10) {
+                    st2 -= 10;
+                    updateUI();
+                    pegar('p2', 6, 'golpe suave.png');
+                }
+            } else { 
+                pos2 = Math.max(40, pos2 - 40); 
+                document.getElementById('p2').style.right = pos2 + "px"; 
+            }
+        } else { 
+            pos2 = Math.min(200, pos2 + 35); 
+            document.getElementById('p2').style.right = pos2 + "px"; 
+        }
+        
+        let velIA = 400 - (opIdx * 100);
+        timerIA = setTimeout(loopIA, velIA);
+    }
+
+    function pegar(q, dmg, anim) {
+        if(!active) return;
+        const sA = document.getElementById(q); const sR = document.getElementById(q === 'p1' ? 'p2' : 'p1');
+        const cA = q === 'p1' ? p1Char : gauntlet[opIdx]; const cR = q === 'p1' ? gauntlet[opIdx] : p1Char;
+        sA.src = `assets/boxers/${cA}/${anim}`;
+        if((530 - pos1 - pos2) <= DIST_COLISION) {
+            if(!(q === 'p1' ? false : (isDef || isEsq))) {
+                playSFX(dmg > 6 ? 'sfx-fuerte' : 'sfx-suave');
+                if(q === 'p1') { hp2 -= dmg; if(dmg > 6) pos2 = Math.max(40, pos2 - 40); } 
+                else { hp1 -= dmg; if(dmg > 6) pos1 = Math.max(40, pos1 - 40); }
+                document.getElementById('p1').style.left = pos1 + "px"; document.getElementById('p2').style.right = pos2 + "px";
+                sR.src = `assets/boxers/${cR}/${dmg > 6 ? 'recive golpe fuerte.png' : 'recive golpe suave.png'}`;
+                
+                if(q === 'p1') {
+                    clearTimeout(timerIdleP2);
+                    timerIdleP2 = setTimeout(() => { if(active && hp2 > 0) sR.src = `assets/boxers/${cR}/idle.gif`; }, 250);
+                } else {
+                    clearTimeout(timerIdleP1);
+                    timerIdleP1 = setTimeout(() => { if(active && hp1 > 0) sR.src = `assets/boxers/${cR}/idle.gif`; }, 250);
+                }
+            }
+        }
+        updateUI();
+        if(hp1 <= 0 || hp2 <= 0) {
+            active = false;
+            if(hp1 <= 0) { sA.src = `assets/boxers/${cA}/idle.gif`; document.getElementById('p1').src = `assets/boxers/${p1Char}/ko.gif`; }
+            else { sA.src = `assets/boxers/${cA}/idle.gif`; document.getElementById('p2').src = `assets/boxers/${gauntlet[opIdx]}/ko.gif`; }
+            if(!window.ko) { window.ko = true; setTimeout(checkFinal, 1500); }
+        } else {
+            if(q === 'p1') {
+                clearTimeout(timerIdleP1);
+                timerIdleP1 = setTimeout(() => { if(active) sA.src = `assets/boxers/${cA}/idle.gif`; }, 200);
+            } else {
+                clearTimeout(timerIdleP2);
+                timerIdleP2 = setTimeout(() => { if(active) sA.src = `assets/boxers/${cA}/idle.gif`; }, 200);
+            }
+        }
+    }
+
+    function checkFinal() {
+        if(hp1 <= 0) roundsP2++; else roundsP1++;
+        
+        const overlay = document.getElementById('victory-overlay');
+
+        if(roundsP1 === 2) {
+            opIdx++; 
+            if(opIdx === 3) { 
+                document.getElementById('bgm').pause(); 
+                playSFX('sfx-win'); 
+                
+                // PANTALLA VICTORIA (CON MARCO)
+                overlay.innerHTML = "<h1>¡VICTORIA!</h1><p>¡Eres el nuevo campeón del ring!</p>";
+                overlay.style.background = "rgba(0, 20, 0, 0.95)";
+                overlay.style.border = "5px solid #00ffa3";
+                overlay.style.boxShadow = "inset 0 0 50px #00ffa3";
+                overlay.style.padding = "30px";
+                overlay.style.display = 'flex';
+                
+                setTimeout(() => { location.reload(); }, 4000); 
+            } else { 
+                roundsP1=0; roundsP2=0; iniciarPelea(); 
+            }
+        } else if(roundsP2 === 2) { 
+            document.getElementById('bgm').pause(); 
+            playSFX('sfx-lose'); 
+            
+            // PANTALLA GAMEOVER (SIN MARCO, PURO GIF COMPLETO)
+            overlay.innerHTML = "";
+            overlay.style.background = "url('assets/gameover.gif') center/100% 100% no-repeat";
+            overlay.style.border = "none";
+            overlay.style.boxShadow = "none";
+            overlay.style.padding = "0";
+            overlay.style.display = 'flex';
+            
+            setTimeout(() => { location.reload(); }, 4000); 
+        } else { 
+            curRound++; prepararRound(); 
+        }
+    }
+
+    function updateUI() {
+        document.getElementById('hp1').style.width = hp1+"%"; document.getElementById('hp2').style.width = hp2+"%";
+        document.getElementById('st1').style.width = st1+"%"; document.getElementById('st2').style.width = st2+"%";
+        document.getElementById('w1').innerText = roundsP1; document.getElementById('w2').innerText = roundsP2; document.getElementById('timer').innerText = timeLeft;
+    }
+
+    function accionarVisual(k, isDown, base, el) {
+        accionar(k, isDown);
+        el.src = isDown ? `assets/Botones de juego/${base}_ovr.png?v=2` : `assets/Botones de juego/${base}.png?v=2`;
+    }
+
+    function accionar(k, isDown) {
+        if(!active) return; k = k.toLowerCase();
+        if(isDown) {
+            if(k === 'z') { isDef = true; document.getElementById('p1').src = `assets/boxers/${p1Char}/block.png`; }
+            if(k === 'x') { isEsq = true; document.getElementById('p1').src = `assets/boxers/${p1Char}/esquivar.png`; }
+            if(!isDef && !isEsq) {
+                if(k === 'arrowleft') { pos1 = Math.max(40, pos1 - 25); document.getElementById('p1').style.left = pos1 + "px"; }
+                if(k === 'arrowright') { if((530 - pos1 - 25 - pos2) >= DIST_MINIMA) pos1 += 25; document.getElementById('p1').style.left = pos1 + "px"; }
+                
+                if(k === 'a') { 
+                    if(st1 >= 10) { 
+                        st1 -= 10;
+                        updateUI();
+                        pegar('p1', 6, 'golpe suave.png'); 
+                    }
+                }
+                if(k === 's') { 
+                    if(st1 >= 20) { 
+                        st1 -= 20;
+                        updateUI();
+                        pegar('p1', 8, 'golpe fuerte.png'); 
+                    }
+                }
+            }
+        } else {
+            if(k === 'z') { isDef = false; if(active) document.getElementById('p1').src=`assets/boxers/${p1Char}/idle.gif`; } 
+            if(k === 'x') { isEsq = false; if(active) document.getElementById('p1').src=`assets/boxers/${p1Char}/idle.gif`; }
+        }
+    }
+
+    function toggleMusic() { 
+        let m = document.getElementById('bgm'), icn = document.getElementById('music-btn-img');
+        if(m.paused) { m.play(); icn.src = "assets/music/music icn/music on.png"; } 
+        else { m.pause(); icn.src = "assets/music/music icn/music off.png"; }
+    }
+
+    document.onkeydown = (e) => accionar(e.key, true); document.onkeyup = (e) => accionar(e.key, false);
+    setInterval(() => { if(active) { timeLeft--; updateUI(); if(timeLeft<=0) checkFinal(); } }, 1000);
+</script>
+</body>
+</html>
